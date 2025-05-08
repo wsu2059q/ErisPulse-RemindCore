@@ -68,31 +68,23 @@ import asyncio
 from datetime import datetime, timedelta
 from ErisPulse import sdk
 
-# 初始化SDK
-sdk.init()
-
-# 获取 RemindCore 实例
-remind_core = sdk.RemindCore
-
-async def demo():
-    # 示例1：添加一个默认全天随机提醒任务
+async def setup_reminders(remind_core):
+    # 添加随机提醒（默认全天）
     remind_core.AddRandomRemind(
         target_id="123456",
         chat_type="user",
         messages=["滴——导管提醒器上线", "今晚安排一下？", "冲冲冲！"]
     )
-    print("随机提醒任务已添加")
 
-    # 示例2：添加一个固定提醒任务
+    # 添加固定时间提醒
     remind_core.AddRemind(
         target_id="789012",
         chat_type="group",
         message="别忘了今天的提醒！",
         platform="yunhu"
     )
-    print("固定提醒任务已添加")
 
-    # 示例3：设置自定义过期时间（比如10天后）
+    # 添加带过期时间的随机提醒
     expire_time = datetime.now() + timedelta(days=10)
     remind_core.AddRandomRemind(
         target_id="334455",
@@ -102,11 +94,57 @@ async def demo():
         platform="onebot",
         expired_at=expire_time
     )
-    print("带过期时间的提醒任务已添加")
 
-# 运行示例
-await demo()
+async def main():
+    sdk.init()
+    
+    if hasattr(sdk, "RemindCore"):
+        await sdk.RemindCore.start()
+        await setup_reminders(sdk.RemindCore)
+
+    try:
+        if hasattr(sdk, "Server"):
+            await sdk.Server.Run()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        if hasattr(sdk, "RemindCore"):
+            await sdk.RemindCore.stop()
+
+if __name__ == "__main__":
+    asyncio.run(main())
 ```
+
+---
+
+### 📌 示例做了什么？
+
+这个脚本的主要作用是初始化并启动 `RemindCore` 定时提醒服务，并设置三种不同类型的提醒任务：
+
+#### 1. **随机时间提醒（AddRandomRemind）**
+   - 面向用户 `"123456"`
+   - 每天在随机时间发送消息，内容从给定列表中随机选择
+   - 默认全天候随机（0~23小时）
+
+#### 2. **固定时间提醒（AddRemind）**
+   - 面向群组 `"789012"`
+   - 固定每天同一时间发送指定消息
+   - 指定了平台为 `"yunhu"`
+
+#### 3. **带过期时间的随机提醒（AddRandomRemind）**
+   - 面向用户 `"334455"`
+   - 在早上8点到晚上8点之间随机发送“记得喝水哦”
+   - 设置了10天后自动过期
+
+---
+
+### 🔧 初始化与运行流程
+
+- 调用 `sdk.init()` 初始化 SDK 环境
+- 使用 `await sdk.RemindCore.start()` 启动定时提醒服务
+- 通过 `setup_reminders` 注册上述三个提醒任务
+- 使用 `await sdk.Server.Run()` 启动监听服务（可处理其他事件）
+- 最后确保程序退出前调用 `await sdk.RemindCore.stop()` 清理资源
 
 ---
 
@@ -141,39 +179,6 @@ await demo()
 | [message](file://z:\bots\luguan\luguan\lib\python3.12\site-packages\ErisPulse\errors.py#L0-L0) | str | 固定提醒内容（仅 mode=fixed 时存在） |
 | `messages` | list[str] | 随机提醒内容列表（仅 mode=random 时存在） |
 | `expired_at` | isoformat(str) | 提醒任务过期时间，默认为 `"9999-12-31T23:59:59"` |
-
----
-
-## 生命周期管理
-
-在主程序中启动和停止 `RemindCore` 模块：
-
-```python
-# main.py
-from ErisPulse import sdk
-import asyncio
-
-async def main():
-    sdk.init()
-
-    # 启动 RemindCore 提醒服务
-    if hasattr(sdk, "RemindCore"):
-        await sdk.RemindCore.start()
-        sdk.logger.info("RemindCore 已启动")
-
-    try:
-        # 启动消息监听服务（由当前环境决定使用何种协议）
-        if hasattr(sdk, "MessageServer"):
-            await sdk.MessageServer.Run()
-    finally:
-        # 确保退出时清理资源
-        if hasattr(sdk, "RemindCore"):
-            await sdk.RemindCore.stop()
-            sdk.logger.info("RemindCore 已停止")
-
-if __name__ == "__main__":
-    asyncio.run(main())
-```
 
 ---
 
