@@ -180,3 +180,4 @@ if __name__ == "__main__":
 ## 参考链接
 
 - [ErisPulse 主库](https://github.com/ErisPulse/ErisPulse/)
+- [ErisPulse 模块开发指南](https://github.com/ErisPulse/ErisPulse/tree/main/docs/DEVELOPMENT.md)
