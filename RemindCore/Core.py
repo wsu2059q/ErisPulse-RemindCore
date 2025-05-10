@@ -2,6 +2,7 @@ import asyncio
 import random
 from datetime import datetime, timedelta
 
+
 class RemindService:
     def __init__(self, sdk):
         self.sdk = sdk
@@ -10,6 +11,7 @@ class RemindService:
 
         self.reminders = self.env.get("reminders", {})
         self.task_handle = None
+        self._placeholder_handlers = {}
 
     async def start(self):
         if not self.task_handle:
@@ -59,7 +61,7 @@ class RemindService:
             self.logger.info(f"添加随机提醒: {target_id}")
         except Exception as e:
             self.logger.error(f"添加随机提醒失败: {e}")
-        
+
     def RemoveRemind(self, target_id, platform="ALL"):
         try:
             removed = False
@@ -75,7 +77,7 @@ class RemindService:
                 self.env.set("reminders", self.reminders)
         except Exception as e:
             self.logger.error(f"移除提醒失败: {e}")
-    
+
     def ListReminds(self, platform="ALL"):
         try:
             if platform == "ALL":
@@ -85,6 +87,7 @@ class RemindService:
         except Exception as e:
             self.logger.error(f"列出提醒失败: {e}")
             return []
+
     def _generate_next_fixed_time(self):
         now = datetime.now()
         return now + timedelta(days=1)
@@ -112,6 +115,7 @@ class RemindService:
                         message = info.get("message")
                         if not message and "messages" in info:
                             message = random.choice(info["messages"])
+
                         await self._send_message(target_id, info["type"], message, info["platform"])
 
                         if info["mode"] == "fixed":
@@ -125,19 +129,22 @@ class RemindService:
             except Exception as e:
                 self.logger.error(f"提醒任务异常: {e}")
                 await asyncio.sleep(60)
+
     async def _send_message(self, target_id, target_type, message, platform="ALL"):
         try:
             sent = False
 
+            processed_message = await self._process_placeholders(message)
+
             if platform in ["onebot", "ALL"] and hasattr(self.sdk, "OneBotAdapter") and target_type in ["user", "group"]:
                 action = "send_private_msg" if target_type == "user" else "send_group_msg"
-                params = {"user_id" if target_type == "user" else "group_id": target_id, "message": message}
+                params = {"user_id" if target_type == "user" else "group_id": target_id, "message": processed_message}
                 await self.sdk.OneBotAdapter.send_action(action, params)
                 self.logger.info(f"[OneBot] 已发送提醒到 {target_type}({target_id})")
                 sent = True
 
             if platform in ["yunhu", "ALL"] and hasattr(self.sdk, "MessageSender"):
-                await self.sdk.MessageSender.Text(recvId=target_id, recvType=target_type, content=message)
+                await self.sdk.MessageSender.Text(recvId=target_id, recvType=target_type, content=processed_message)
                 self.logger.info(f"[Yunhu] 已发送提醒到 {target_type}({target_id})")
                 sent = True
 
@@ -146,3 +153,20 @@ class RemindService:
 
         except Exception as e:
             self.logger.error(f"发送消息失败: {e}")
+
+    def AddPlaceholder(self, placeholder: str, handler: callable):
+        self._placeholder_handlers[placeholder] = handler
+
+    async def _process_placeholders(self, content: str) -> str:
+        if not self._placeholder_handlers:
+            return content
+
+        for placeholder, handler in self._placeholder_handlers.items():
+            token = "{" + placeholder + "}"
+            if token in content:
+                try:
+                    result = await handler() if asyncio.iscoroutinefunction(handler) else handler()
+                    content = content.replace(token, str(result))
+                except Exception as e:
+                    self.logger.error(f"处理占位符 {token} 时出错: {e}")
+        return content
