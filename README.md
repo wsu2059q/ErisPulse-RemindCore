@@ -14,6 +14,7 @@
 - 提供标准接口供其他模块调用
 - 支持多平台发送：`yunhu` / `onebot` / `ALL`
 - 基于 SDK 的环境配置管理
+- 新增占位符系统支持消息内容动态替换
 
 ---
 
@@ -21,18 +22,18 @@
 
 ### 标准接口
 
-#### [AddRemind(target_id, chat_type, message, platform="ALL", expired_at=None)](file://z:\bots\luguan\LuGuanReminder\Core.py#L28-L38)
+#### AddRemind(target_id, chat_type, message, platform="ALL", expired_at=None)
 
 添加一个固定周期的提醒任务  
 参数说明：
 
 - `target_id`: 用户或群组 ID
 - `chat_type`: `"user"` 或 `"group"`
-- [message](file://z:\bots\luguan\luguan\lib\python3.12\site-packages\ErisPulse\errors.py#L0-L0): 提醒内容文本
+- `message`: 提醒内容文本
 - `platform`: 平台标识，建议传入 `"yunhu"` / `"onebot"` / `"ALL"`，默认为 `"ALL"`
 - `expired_at`: 提醒任务过期时间，若不传则默认为 `"9999-12-31T23:59:59"` 表示永不过期
 
-#### [AddRandomRemind(target_id, chat_type, messages, interval=(0, 23), platform="ALL", expired_at=None)](file://z:\bots\luguan\LuGuanReminder\Core.py#L40-L50)
+#### AddRandomRemind(target_id, chat_type, messages, interval=(0, 23), platform="ALL", expired_at=None)
 
 添加一个每天随机时间的提醒任务  
 参数说明：
@@ -42,7 +43,7 @@
 - `platform`: 同上，默认为 `"ALL"`
 - `expired_at`: 同上，默认永不过期
 
-#### [RemoveRemind(target_id, platform="ALL")](file://z:\bots\luguan\LuGuanReminder\Core.py#L52-L56)
+#### RemoveRemind(target_id, platform="ALL")
 
 移除指定 target 的提醒任务  
 参数说明：
@@ -50,7 +51,7 @@
 - `target_id`: 用户或群组 ID
 - `platform`: 可选，表示只移除特定平台下的该目标提醒，默认为 `"ALL"`
 
-#### [ListReminds(platform="ALL")](file://z:\bots\luguan\LuGuanReminder\Core.py#L58-L59)
+#### ListReminds(platform="ALL")
 
 返回当前所有提醒任务列表  
 参数说明：
@@ -58,6 +59,14 @@
 - `platform`: 可选，表示只列出特定平台下的提醒任务，默认为 `"ALL"`
 
 > ⚠️ **注意**：虽然 `platform` 参数不是强制字段，默认为 `"ALL"`，但**建议开发者根据目标平台明确传入 `"yunhu"` 或 `"onebot"`**，以便更好地控制消息发送路径并避免潜在冲突。
+
+#### AddPlaceholder(placeholder: str, handler: callable)
+
+注册一个占位符及其处理器函数  
+参数说明：
+
+- `placeholder`: 占位符名称，例如 `"time"`
+- `handler`: 异步或同步函数，返回要替换的内容
 
 ---
 
@@ -94,6 +103,12 @@ async def setup_reminders(remind_core):
         platform="onebot",
         expired_at=expire_time
     )
+    
+    # 注册占位符处理器
+    async def get_current_time():
+        return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    
+    remind_core.AddPlaceholder("current_time", get_current_time)
 
 async def main():
     sdk.init()
@@ -136,6 +151,10 @@ if __name__ == "__main__":
    - 在早上8点到晚上8点之间随机发送“记得喝水哦”
    - 设置了10天后自动过期
 
+#### 4. **占位符功能演示**
+   - 注册了一个名为 `current_time` 的占位符处理器
+   - 可以在消息中使用 `{current_time}` 占位符，在发送前自动替换为当前时间
+
 ---
 
 ### 🔧 初始化与运行流程
@@ -163,6 +182,13 @@ if __name__ == "__main__":
 - 当 `platform == "yunhu"` 时，使用对应适配器发送消息
 - 当 `platform == "ALL"` 时，尝试所有可用平台发送，优先 OneBot，失败则 Yunhu
 
+### 占位符处理逻辑
+
+- 使用 AddPlaceholder 方法注册占位符及对应的处理函数
+- 在发送消息前，会自动解析消息内容中的 `{placeholder}` 格式字符串
+- 对匹配到的占位符执行对应的处理函数获取实际值进行替换
+- 支持同步和异步处理函数
+
 ---
 
 ## 数据结构说明
@@ -176,9 +202,28 @@ if __name__ == "__main__":
 | `last_active` | isoformat(str) | 最后活跃时间（ISO格式字符串） |
 | `next_reminder` | isoformat(str) | 下次提醒时间（ISO格式字符串） |
 | `mode` | str | 提醒模式，"fixed" 或 "random" |
-| [message](file://z:\bots\luguan\luguan\lib\python3.12\site-packages\ErisPulse\errors.py#L0-L0) | str | 固定提醒内容（仅 mode=fixed 时存在） |
+| `message` | str | 固定提醒内容（仅 mode=fixed 时存在） |
 | `messages` | list[str] | 随机提醒内容列表（仅 mode=random 时存在） |
 | `expired_at` | isoformat(str) | 提醒任务过期时间，默认为 `"9999-12-31T23:59:59"` |
+
+---
+
+## 更新日志
+
+### v1.1.0（最新更新）
+- 新增占位符系统支持
+  - 新增 AddPlaceholder 方法用于注册占位符处理器
+  - 实现消息内容中的 `{placeholder}` 自动替换功能
+  - 支持同步和异步处理函数
+  - 提升消息内容的灵活性和动态性
+
+### v1.0.0
+- 初始版本发布
+- 实现基本的定时提醒功能
+  - 支持固定周期提醒和随机时间提醒
+  - 支持多平台消息发送
+  - 提供标准接口供其他模块调用
+  - 实现任务过期自动清理
 
 ---
 
