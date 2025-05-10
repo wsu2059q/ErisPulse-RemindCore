@@ -5,7 +5,7 @@ moduleInfo = {
         "description": "通用定时提醒服务模块",
         "author": "WSu2059",
         "license": "MIT",
-        "homepage": "",
+        "homepage": "https://github.com/wsu2059q/ErisPulse-RemindCore",
     },
     "dependencies": {
         "requires": [],
