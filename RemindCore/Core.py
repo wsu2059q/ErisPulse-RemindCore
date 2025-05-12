@@ -143,8 +143,8 @@ class RemindService:
                 self.logger.info(f"[OneBot] 已发送提醒到 {target_type}({target_id})")
                 sent = True
 
-            if platform in ["yunhu", "ALL"] and hasattr(self.sdk, "MessageSender"):
-                await self.sdk.MessageSender.Text(recvId=target_id, recvType=target_type, content=processed_message)
+            if platform in ["yunhu", "ALL"] and hasattr(self.sdk, "YunhuMessageSender"):
+                await self.sdk.YunhuMessageSender.Text(recvId=target_id, recvType=target_type, content=processed_message)
                 self.logger.info(f"[Yunhu] 已发送提醒到 {target_type}({target_id})")
                 sent = True
 
