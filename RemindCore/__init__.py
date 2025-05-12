@@ -1,7 +1,7 @@
 moduleInfo = {
     "meta": {
         "name": "RemindCore",
-        "version": "1.1.0",
+        "version": "1.1.1",
         "description": "通用定时提醒服务模块",
         "author": "WSu2059",
         "license": "MIT",
@@ -9,7 +9,7 @@ moduleInfo = {
     },
     "dependencies": {
         "requires": [],
-        "optional": ["MessageSender", "OneBotAdapter"],
+        "optional": ["YunhuMessageSender", "OneBotAdapter"],
         "pip": []
     }
 }
